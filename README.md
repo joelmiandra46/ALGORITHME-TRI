@@ -13,12 +13,6 @@ Tri par insertion
 
 Tri par sélection
 
-Tri fusion (à ajouter)
-
-Tri rapide (à ajouter)
-
-Tri par tas (à ajouter)
-
 Tri Gnome
 
 ✍️ Éditeur de code intégré
