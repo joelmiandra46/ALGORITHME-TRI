@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualiseur d'Algorithmes de Tri</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+  <div class="max-w-5xl mx-auto py-10 px-4">
+    <h1 class="text-3xl font-bold mb-6 text-yellow-400">Visualiseur d'Algorithmes de Tri</h1>
+
+    <div class="mb-6">
+      <label class="block text-lg mb-2">Choisir un algorithme :</label>
+      <select id="algoSelect" class="bg-gray-800 text-white p-2 rounded w-full" onchange="displayAlgorithmCode()">
+        <option value="bubble">Tri à bulles</option>
+        <option value="insertion">Tri par insertion</option>
+        <option value="selection">Tri par sélection</option>
+        <option value="merge">Tri fusion</option>
+        <option value="quick">Tri rapide</option>
+        <option value="heap">Tri par tas</option>
+        <option value="gnome">Tri Gnome</option>
+      </select>
+    </div>
+
+    <div class="mb-4">
+      <button onclick="generateArray()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Générer un tableau</button>
+      <button onclick="runSort()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded ml-2">Lancer le tri</button>
+      <button onclick="exportAlgorithms()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded ml-2">Exporter</button>
+      <input type="file" id="importFile" accept=".json" onchange="importAlgorithms()" class="ml-2" />
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-lg mb-2">Entrez des nombres séparés par des virgules :</label>
+      <input type="text" id="customInput" placeholder="10, 45, 23, 78" class="bg-gray-800 text-white p-2 rounded w-full mb-2">
+      <button onclick="customInputArray()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Utiliser ces nombres</button>
+    </div>
+
+    <div id="arrayContainer" class="flex items-end gap-1 h-64 bg-gray-800 p-2 rounded mb-6"></div>
+
+    <h2 class="text-xl font-semibold mt-8 mb-2">Code de l'algorithme sélectionné</h2>
+    <pre id="codeViewer" class="bg-gray-800 text-green-300 p-4 rounded overflow-auto h-64"></pre>
+
+    <h2 class="text-2xl font-semibold mt-10 mb-4">Ajouter un algorithme personnalisé</h2>
+    <input id="algoName" type="text" placeholder="Nom de l'algorithme" class="bg-gray-800 text-white p-2 rounded w-full mb-2">
+
+    <label class="block text-sm mb-1">Langage :</label>
+    <select id="algoLang" class="bg-gray-800 text-white p-2 rounded w-full mb-2" onchange="updateEditorMode()">
+      <option value="javascript">JavaScript</option>
+      <option value="c">Langage C</option>
+      <option value="python">Python</option>
+    </select>
+
+    <textarea id="algoCode" placeholder="Code ou description..." class="hidden"></textarea>
+    <div id="editor" class="bg-gray-800 rounded h-40 mb-2"></div>
+    <button onclick="saveAlgorithm()" class="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded">Sauvegarder</button>
+
+    <h2 class="text-xl font-semibold mt-8 mb-2">Mes algorithmes enregistrés</h2>
+    <ul id="savedAlgorithms" class="list-disc pl-5"></ul>
+  </div>
+
+  <script>
+    let array = [];
+    let editor;
+
+    const builtinCodes = {
+      bubble: `function bubbleSort(arr) {
+  for (let i = 0; i < arr.length - 1; i++) {
+    for (let j = 0; j < arr.length - i - 1; j++) {
+      if (arr[j] > arr[j + 1]) {
+        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+      }
+    }
+  }
+  return arr;
+}`,
+      insertion: `function insertionSort(arr) {
+  for (let i = 1; i < arr.length; i++) {
+    let key = arr[i];
+    let j = i - 1;
+    while (j >= 0 && arr[j] > key) {
+      arr[j + 1] = arr[j];
+      j--;
+    }
+    arr[j + 1] = key;
+  }
+  return arr;
+}`,
+      selection: `function selectionSort(arr) {
+  for (let i = 0; i < arr.length - 1; i++) {
+    let minIndex = i;
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[j] < arr[minIndex]) {
+        minIndex = j;
+      }
+    }
+    [arr[i], arr[minIndex]] = [arr[minIndex], arr[i]];
+  }
+  return arr;
+}`,
+      gnome: `function gnomeSort(arr) {
+  let i = 0;
+  while (i < arr.length) {
+    if (i === 0 || arr[i] >= arr[i - 1]) {
+      i++;
+    } else {
+      [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
+      i--;
+    }
+  }
+  return arr;
+}`
+    };
+
+    function generateArray() {
+      array = Array.from({length: 20}, () => Math.floor(Math.random() * 100));
+      renderArray();
+    }
+
+    function customInputArray() {
+      const input = document.getElementById("customInput").value;
+      const values = input.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+      if (values.length > 0) {
+        array = values;
+        renderArray();
+      }
+    }
+
+    function renderArray(highlight = -1) {
+      const container = document.getElementById("arrayContainer");
+      container.innerHTML = "";
+      array.forEach((value, i) => {
+        const bar = document.createElement("div");
+        bar.style.height = `${value * 2}px`;
+        bar.style.width = "20px";
+        bar.className = `bg-${i === highlight ? 'yellow' : 'blue'}-500`; 
+        container.appendChild(bar);
+      });
+    }
+
+    function displayAlgorithmCode() {
+      const selected = document.getElementById("algoSelect").value;
+      const saved = JSON.parse(localStorage.getItem("algorithms") || "[]");
+      const algo = saved.find(a => a.name === selected);
+      if (algo) {
+        document.getElementById("codeViewer").textContent = algo.code;
+      } else {
+        document.getElementById("codeViewer").textContent = builtinCodes[selected] || "";
+      }
+    }
+
+    async function runSort() {
+      const algo = document.getElementById("algoSelect").value;
+      if (algo === "bubble") await bubbleSort();
+      else if (algo === "insertion") await insertionSort();
+      else if (algo === "selection") await selectionSort();
+      else if (algo === "merge") await mergeSort();
+      else if (algo === "quick") await quickSort(0, array.length - 1);
+      else if (algo === "heap") await heapSort();
+      else if (algo === "gnome") await gnomeSort();
+    }
+
+    async function bubbleSort() {
+      for (let i = 0; i < array.length - 1; i++) {
+        for (let j = 0; j < array.length - i - 1; j++) {
+          if (array[j] > array[j + 1]) {
+            [array[j], array[j + 1]] = [array[j + 1], array[j]];
+            renderArray(j);
+            await new Promise(r => setTimeout(r, 100));
+          }
+        }
+      }
+    }
+
+    async function insertionSort() {
+      for (let i = 1; i < array.length; i++) {
+        let key = array[i];
+        let j = i - 1;
+        while (j >= 0 && array[j] > key) {
+          array[j + 1] = array[j];
+          j--;
+          renderArray(j);
+          await new Promise(r => setTimeout(r, 100));
+        }
+        array[j + 1] = key;
+      }
+      renderArray();
+    }
+
+    async function selectionSort() {
+      for (let i = 0; i < array.length - 1; i++) {
+        let minIdx = i;
+        for (let j = i + 1; j < array.length; j++) {
+          if (array[j] < array[minIdx]) {
+            minIdx = j;
+          }
+        }
+        [array[i], array[minIdx]] = [array[minIdx], array[i]];
+        renderArray(minIdx);
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    async function gnomeSort() {
+      let i = 0;
+      while (i < array.length) {
+        if (i === 0 || array[i] >= array[i - 1]) {
+          i++;
+        } else {
+          [array[i], array[i - 1]] = [array[i - 1], array[i]];
+          renderArray(i);
+          await new Promise(r => setTimeout(r, 100));
+          i--;
+        }
+      }
+    }
+
+    function saveAlgorithm() {
+      const name = document.getElementById("algoName").value;
+      const code = editor.getValue();
+      const lang = document.getElementById("algoLang").value;
+      if (name && code) {
+        const algos = JSON.parse(localStorage.getItem("algorithms") || "[]");
+        algos.push({ name, code, lang });
+        localStorage.setItem("algorithms", JSON.stringify(algos));
+        loadSavedAlgorithms();
+        document.getElementById("algoName").value = "";
+        editor.setValue("");
+      }
+    }
+
+    function loadSavedAlgorithms() {
+      const list = document.getElementById("savedAlgorithms");
+      const select = document.getElementById("algoSelect");
+      const algos = JSON.parse(localStorage.getItem("algorithms") || "[]");
+      list.innerHTML = "";
+      Array.from(select.options).forEach(opt => {
+        if (opt.dataset.custom) opt.remove();
+      });
+      algos.forEach(a => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${a.name}</strong> (${a.lang})<br><code class='text-sm'>${a.code.slice(0, 100)}...</code>`;
+        list.appendChild(li);
+
+        const option = document.createElement("option");
+        option.value = a.name;
+        option.textContent = `${a.name} (perso)`;
+        option.dataset.custom = true;
+        select.appendChild(option);
+      });
+    }
+
+    function updateEditorMode() {
+      const lang = document.getElementById("algoLang").value;
+      let mode = "javascript";
+      if (lang === "python") mode = "python";
+      else if (lang === "c") mode = "text/x-csrc";
+      editor.setOption("mode", mode);
+    }
+
+    function exportAlgorithms() {
+      const algos = localStorage.getItem("algorithms");
+      const blob = new Blob([algos], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "algorithmes.json";
+      a.click();
+    }
+
+    function importAlgorithms() {
+      const input = document.getElementById("importFile");
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            localStorage.setItem("algorithms", JSON.stringify(imported));
+            loadSavedAlgorithms();
+          }
+        } catch (err) {
+          alert("Erreur de lecture du fichier JSON");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.onload = function() {
+      editor = CodeMirror(document.getElementById("editor"), {
+        value: "",
+        mode: "javascript",
+        lineNumbers: true,
+        theme: "base16-dark"
+      });
+      loadSavedAlgorithms();
+      displayAlgorithmCode();
+    }
+  </script>
+</body>
+</html>
